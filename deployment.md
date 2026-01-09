@@ -52,13 +52,16 @@ sudo mysql -u root -p
 
 Dalam MySQL:
 
-CREATE DATABASE kktm_ledang_hostel;
-CREATE USER 'kktm_user'@'localhost' IDENTIFIED BY 'your_secure_password';
-GRANT ALL PRIVILEGES ON kktm_ledang_hostel.* TO 'kktm_user'@'localhost';
+CREATE USER 'hosteluser'@'localhost' IDENTIFIED BY 'Hostel@1337';
+GRANT ALL PRIVILEGES ON kktm_ledang_hostel.* TO 'hosteluser'@'localhost';
 FLUSH PRIVILEGES;
-USE kktm_ledang_hostel;
-SOURCE /var/www/Student-Hostel-Management/backend/database/schema.sql;
 EXIT;
+
+Import schema:
+
+sudo mysql -u hosteluser -p < /var/www/Student-Hostel-Management/backend/database/schema.sql
+
+Masukkan password: Hostel@1337
 
 
 ## Langkah 7: Update Database Config
@@ -71,8 +74,8 @@ Tukar kepada:
 
 private $host = "localhost";
 private $db_name = "kktm_ledang_hostel";
-private $username = "kktm_user";
-private $password = "your_secure_password";
+private $username = "hosteluser";
+private $password = "Hostel@1337";
 
 
 ## Langkah 8: Create Nginx Config
