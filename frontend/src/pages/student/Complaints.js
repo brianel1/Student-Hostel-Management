@@ -3,6 +3,7 @@ import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { complaintsAPI } from '../../services/api';
 import { EyeIcon, SendIcon, CloseIcon } from '../../components/Icons';
+import { toGMT8LocaleString, toGMT8LocaleDateString } from '../../utils/dateUtils';
 
 const StudentComplaints = () => {
   const { user } = useAuth();
@@ -99,7 +100,7 @@ const StudentComplaints = () => {
                         {complaint.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td>{new Date(complaint.created_at).toLocaleDateString()}</td>
+                    <td>{toGMT8LocaleDateString(complaint.created_at)}</td>
                     <td>
                       <button className="btn btn-sm btn-primary" onClick={() => handleViewDetails(complaint)}>
                         <EyeIcon /> View
@@ -135,8 +136,23 @@ const StudentComplaints = () => {
                 <p><strong>Category:</strong> <span style={{ textTransform: 'capitalize' }}>{selectedComplaint.category}</span></p>
                 <p><strong>Priority:</strong> <span className={`priority-${selectedComplaint.priority}`} style={{ textTransform: 'capitalize' }}>{selectedComplaint.priority}</span></p>
                 <p><strong>Status:</strong> <span className={`badge badge-${selectedComplaint.status}`}>{selectedComplaint.status.replace('_', ' ')}</span></p>
-                <p><strong>Submitted:</strong> {new Date(selectedComplaint.created_at).toLocaleString()}</p>
+                <p><strong>Submitted:</strong> {toGMT8LocaleString(selectedComplaint.created_at)}</p>
               </div>
+              
+              {selectedComplaint.status === 'resolved' && selectedComplaint.resolved_at && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: 'var(--success-light)', 
+                  borderRadius: '8px', 
+                  marginBottom: '16px',
+                  border: '1px solid var(--success)'
+                }}>
+                  <p style={{ margin: 0, color: 'var(--success)', fontWeight: 500 }}>
+                    ✓ Issue Resolved on {toGMT8LocaleString(selectedComplaint.resolved_at)}
+                    {selectedComplaint.resolved_by_name && ` by ${selectedComplaint.resolved_by_name}`}
+                  </p>
+                </div>
+              )}
               
               <div style={{ background: 'var(--gray-50)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                 <p style={{ fontWeight: 500, marginBottom: '8px' }}>Description:</p>
@@ -145,11 +161,27 @@ const StudentComplaints = () => {
 
               {selectedComplaint.images?.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontWeight: 500, marginBottom: '8px' }}>Images:</p>
+                  <p style={{ fontWeight: 500, marginBottom: '8px' }}>Your Images:</p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {selectedComplaint.images.map((img, idx) => (
-                      <img key={idx} src={`http://localhost:8000/${img}`} alt="Complaint" 
-                           style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                      <a key={idx} href={`http://localhost:8000/${img}`} target="_blank" rel="noopener noreferrer">
+                        <img src={`http://localhost:8000/${img}`} alt="Complaint" 
+                             style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: '2px solid var(--gray-200)' }} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedComplaint.resolution_images?.length > 0 && (
+                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'var(--success-light)', borderRadius: '8px', border: '1px solid var(--success)' }}>
+                  <p style={{ fontWeight: 500, marginBottom: '8px', color: 'var(--success)' }}>Resolution Images (Warden):</p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {selectedComplaint.resolution_images.map((img, idx) => (
+                      <a key={idx} href={`http://localhost:8000/${img}`} target="_blank" rel="noopener noreferrer">
+                        <img src={`http://localhost:8000/${img}`} alt="Resolution" 
+                             style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: '2px solid var(--success)' }} />
+                      </a>
                     ))}
                   </div>
                 </div>
@@ -162,7 +194,7 @@ const StudentComplaints = () => {
                     <div key={comment.id} className="comment">
                       <div className="comment-header">
                         <span className="comment-author">{comment.name} ({comment.role})</span>
-                        <span className="comment-date">{new Date(comment.created_at).toLocaleString()}</span>
+                        <span className="comment-date">{toGMT8LocaleString(comment.created_at)}</span>
                       </div>
                       <p className="comment-text">{comment.comment}</p>
                     </div>

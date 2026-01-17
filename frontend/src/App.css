@@ -9,6 +9,7 @@
   --primary-glow: rgba(99, 102, 241, 0.4);
   --secondary: #06b6d4;
   --success: #10b981;
+  --success-light: #d1fae5;
   --warning: #f59e0b;
   --danger: #ef4444;
   --gray-50: #f8fafc;
@@ -1091,6 +1092,16 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
 
+/* Hide scrollbar for modal */
+.modal {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.modal::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* ==================== SELECTION ==================== */
 ::selection { background: var(--primary-light); color: white; }
 
@@ -1958,4 +1969,10 @@ body {
   .inline-stats {
     display: none;
   }
+}
+
+/* Spinner animation for upload button */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

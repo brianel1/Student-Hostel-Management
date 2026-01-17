@@ -25,6 +25,10 @@ class Database {
                 $this->password
             );
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Set timezone to GMT+8 (Asia/Kuala_Lumpur)
+            $this->conn->exec("SET time_zone = '+08:00'");
+            date_default_timezone_set('Asia/Kuala_Lumpur');
         } catch(PDOException $e) {
             echo json_encode(["error" => "Connection failed: " . $e->getMessage()]);
         }

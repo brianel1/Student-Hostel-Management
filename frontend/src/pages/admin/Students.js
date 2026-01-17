@@ -3,6 +3,7 @@ import Layout from '../../components/Layout';
 import { studentsAPI, roomsAPI } from '../../services/api';
 import { CloseIcon, EyeIcon, RoomIcon, SearchIcon, FilterIcon, DownloadIcon, TrashIcon } from '../../components/Icons';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { toGMT8LocaleDateString } from '../../utils/dateUtils';
 
 const AdminStudents = () => {
   const [students, setStudents] = useState([]);
@@ -150,7 +151,7 @@ const AdminStudents = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `students_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `students_export_${toGMT8LocaleDateString(new Date()).replace(/\//g, '-')}.csv`;
     a.click();
   };
 

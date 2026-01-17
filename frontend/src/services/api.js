@@ -23,6 +23,7 @@ export const complaintsAPI = {
   getAll: (params = {}) => api.get('/complaints/index.php', { params }),
   create: (data) => api.post('/complaints/index.php', data),
   update: (data) => api.put('/complaints/index.php', data),
+  delete: (id) => api.delete(`/complaints/index.php?id=${id}`),
   getComments: (complaintId) => api.get(`/complaints/comments.php?complaint_id=${complaintId}`),
   addComment: (data) => api.post('/complaints/comments.php', data),
   uploadImage: (formData) => api.post('/complaints/upload.php', formData, {

@@ -7,20 +7,28 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('kktm_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        if (parsed && parsed.id && parsed.role) {
-          setUser(parsed);
-        } else {
-          localStorage.removeItem('kktm_user');
+    const initAuth = () => {
+      try {
+        const savedUser = localStorage.getItem('kktm_user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.id && parsed.role) {
+            setUser(parsed);
+          } else {
+            localStorage.removeItem('kktm_user');
+          }
         }
+      } catch (e) {
+        console.error('Auth init error:', e);
+        localStorage.removeItem('kktm_user');
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      localStorage.removeItem('kktm_user');
-    }
-    setLoading(false);
+    };
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initAuth, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const login = (userData) => {

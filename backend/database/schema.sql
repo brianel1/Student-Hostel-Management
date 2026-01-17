@@ -72,10 +72,13 @@ CREATE TABLE complaints (
     priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
     status ENUM('submitted', 'in_review', 'in_progress', 'resolved', 'rejected') DEFAULT 'submitted',
     description TEXT NOT NULL,
+    resolved_at TIMESTAMP NULL DEFAULT NULL,
+    resolved_by INT NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+    FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Complaint images table
@@ -83,6 +86,7 @@ CREATE TABLE complaint_images (
     id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     image_path VARCHAR(255) NOT NULL,
+    uploaded_by ENUM('student', 'warden') DEFAULT 'student',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE
 );

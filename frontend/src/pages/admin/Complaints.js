@@ -3,7 +3,8 @@ import Layout from '../../components/Layout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
 import { complaintsAPI } from '../../services/api';
-import { EyeIcon, CloseIcon, SendIcon, SearchIcon, FilterIcon } from '../../components/Icons';
+import { EyeIcon, CloseIcon, SendIcon, SearchIcon, FilterIcon, TrashIcon } from '../../components/Icons';
+import { toGMT8LocaleString, toGMT8LocaleDateString } from '../../utils/dateUtils';
 
 const AdminComplaints = () => {
   const { user } = useAuth();
@@ -13,6 +14,8 @@ const AdminComplaints = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [statusChange, setStatusChange] = useState(null);
+  const [resolutionImage, setResolutionImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Search and Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +27,9 @@ const AdminComplaints = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
+
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => { fetchComplaints(); }, []);
 
@@ -71,16 +77,47 @@ const AdminComplaints = () => {
 
   const handleViewDetails = (complaint) => {
     setSelectedComplaint(complaint);
+    setStatusChange(null);
+    setResolutionImage(null);
     fetchComments(complaint.id);
   };
 
   const handleStatusChange = async () => {
     if (!statusChange) return;
+    
+    // If changing to resolved, require resolution image
+    if (statusChange === 'resolved' && !selectedComplaint.resolution_images?.length && !resolutionImage) {
+      alert('Please upload a resolution image before marking as resolved');
+      return;
+    }
+    
     try {
-      await complaintsAPI.update({ id: selectedComplaint.id, status: statusChange });
+      // Upload resolution image if provided
+      if (resolutionImage) {
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append('image', resolutionImage);
+        formData.append('complaint_id', selectedComplaint.id);
+        formData.append('uploaded_by', 'warden');
+        
+        await complaintsAPI.uploadImage(formData);
+        setResolutionImage(null);
+        setUploadingImage(false);
+      }
+      
+      await complaintsAPI.update({ 
+        id: selectedComplaint.id, 
+        status: statusChange,
+        resolved_by: user.id 
+      });
+      
       fetchComplaints();
       setSelectedComplaint({ ...selectedComplaint, status: statusChange });
-    } catch (error) { console.error('Error:', error); }
+      setStatusChange(null);
+    } catch (error) { 
+      console.error('Error:', error);
+      setUploadingImage(false);
+    }
   };
 
   const handleAddComment = async (e) => {
@@ -93,11 +130,76 @@ const AdminComplaints = () => {
     } catch (error) { console.error('Error:', error); }
   };
 
+  const handleResolutionImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/jpg'].includes(file.type)) {
+        alert('Only JPEG, PNG, and GIF images are allowed');
+        return;
+      }
+      setResolutionImage(file);
+    }
+  };
+
+  const handleUploadResolutionImage = async () => {
+    if (!resolutionImage) return;
+    
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append('image', resolutionImage);
+      formData.append('complaint_id', selectedComplaint.id);
+      formData.append('uploaded_by', 'warden');
+      
+      await complaintsAPI.uploadImage(formData);
+      setResolutionImage(null);
+      
+      // Refresh complaint data
+      const response = await complaintsAPI.getAll();
+      if (response.data.success) {
+        const updatedComplaint = response.data.data.find(c => c.id === selectedComplaint.id);
+        if (updatedComplaint) {
+          setSelectedComplaint(updatedComplaint);
+        }
+        setComplaints(response.data.data);
+      }
+      
+      setUploadingImage(false);
+      alert('Resolution image uploaded successfully');
+    } catch (error) {
+      console.error('Error:', error);
+      setUploadingImage(false);
+      alert('Failed to upload image');
+    }
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
     setFilterCategory('');
     setFilterPriority('');
     setFilterStatus('');
+  };
+
+  const handleDeleteComplaint = async () => {
+    if (!deleteConfirm) return;
+    
+    try {
+      const response = await complaintsAPI.delete(deleteConfirm.id);
+      if (response.data.success) {
+        setComplaints(complaints.filter(c => c.id !== deleteConfirm.id));
+        setDeleteConfirm(null);
+        alert('Complaint deleted successfully');
+      } else {
+        alert(response.data.message || 'Failed to delete complaint');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to delete complaint');
+    }
   };
 
   const activeFiltersCount = [filterCategory, filterPriority, filterStatus].filter(Boolean).length;
@@ -225,8 +327,21 @@ const AdminComplaints = () => {
                   <td style={{ textTransform: 'capitalize' }}>{complaint.category}</td>
                   <td><span className={`priority-${complaint.priority}`} style={{ textTransform: 'capitalize' }}>{complaint.priority}</span></td>
                   <td><span className={`badge badge-${complaint.status}`}>{complaint.status.replace('_', ' ')}</span></td>
-                  <td style={{ fontSize: '0.85rem' }}>{new Date(complaint.created_at).toLocaleDateString()}</td>
-                  <td><button className="btn btn-sm btn-primary" onClick={() => handleViewDetails(complaint)}><EyeIcon /> View</button></td>
+                  <td style={{ fontSize: '0.85rem' }}>{toGMT8LocaleDateString(complaint.created_at)}</td>
+                  <td>
+                    <div className="actions">
+                      <button className="btn btn-sm btn-primary" onClick={() => handleViewDetails(complaint)}>
+                        <EyeIcon /> View
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-danger" 
+                        onClick={() => setDeleteConfirm(complaint)}
+                        title="Delete complaint"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               )) : (
                 <tr><td colSpan="7">
@@ -289,8 +404,23 @@ const AdminComplaints = () => {
                 <p><strong>Room:</strong> {selectedComplaint.block ? `${selectedComplaint.block}-${selectedComplaint.room_no}` : 'Not assigned'}</p>
                 <p><strong>Category:</strong> <span style={{ textTransform: 'capitalize' }}>{selectedComplaint.category}</span></p>
                 <p><strong>Priority:</strong> <span className={`priority-${selectedComplaint.priority}`} style={{ textTransform: 'capitalize' }}>{selectedComplaint.priority}</span></p>
-                <p><strong>Date:</strong> {new Date(selectedComplaint.created_at).toLocaleString()}</p>
+                <p><strong>Date:</strong> {toGMT8LocaleString(selectedComplaint.created_at)}</p>
               </div>
+              
+              {selectedComplaint.status === 'resolved' && selectedComplaint.resolved_at && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: 'var(--success-light)', 
+                  borderRadius: '8px', 
+                  marginBottom: '16px',
+                  border: '1px solid var(--success)'
+                }}>
+                  <p style={{ margin: 0, color: 'var(--success)', fontWeight: 500 }}>
+                    ✓ Resolved on {toGMT8LocaleString(selectedComplaint.resolved_at)}
+                    {selectedComplaint.resolved_by_name && ` by ${selectedComplaint.resolved_by_name}`}
+                  </p>
+                </div>
+              )}
               
               <div className="description-box">
                 <p className="label">Description:</p>
@@ -299,10 +429,12 @@ const AdminComplaints = () => {
 
               {selectedComplaint.images?.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontWeight: 500, marginBottom: '8px' }}>Images:</p>
+                  <p style={{ fontWeight: 500, marginBottom: '8px' }}>Student Images:</p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {selectedComplaint.images.map((img, idx) => (
-                      <img key={idx} src={`http://localhost:8000/${img}`} alt="Complaint" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                      <a key={idx} href={`http://localhost:8000/${img}`} target="_blank" rel="noopener noreferrer">
+                        <img src={`http://localhost:8000/${img}`} alt="Complaint" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: '2px solid var(--gray-200)' }} />
+                      </a>
                     ))}
                   </div>
                 </div>
@@ -319,13 +451,141 @@ const AdminComplaints = () => {
                 </select>
               </div>
 
+              {/* Resolution Image Upload Section */}
+              <div style={{ 
+                padding: '20px', 
+                backgroundColor: 'var(--gray-50)', 
+                borderRadius: '12px', 
+                marginBottom: '16px',
+                border: '1px solid var(--gray-200)'
+              }}>
+                <p style={{ fontWeight: 600, marginBottom: '16px', fontSize: '1rem', color: 'var(--gray-700)' }}>Resolution Images (Warden)</p>
+                
+                {selectedComplaint.resolution_images?.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {selectedComplaint.resolution_images.map((img, idx) => (
+                        <a key={idx} href={`http://localhost:8000/${img}`} target="_blank" rel="noopener noreferrer">
+                          <img src={`http://localhost:8000/${img}`} alt="Resolution" style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '10px', cursor: 'pointer', border: '3px solid var(--success)', transition: 'transform 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'} />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div style={{ 
+                  border: '2px dashed var(--primary)', 
+                  borderRadius: '12px', 
+                  padding: '24px',
+                  textAlign: 'center',
+                  backgroundColor: 'white',
+                  transition: 'all 0.3s',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--success)';
+                  e.currentTarget.style.backgroundColor = 'var(--success-light)';
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.backgroundColor = 'white';
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith('image/')) {
+                    handleResolutionImageChange({ target: { files: [file] } });
+                  }
+                }}
+                onClick={() => document.getElementById('resolution-file-input').click()}
+                >
+                  <input 
+                    id="resolution-file-input"
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleResolutionImageChange}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  {resolutionImage ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '80px', 
+                        height: '80px', 
+                        borderRadius: '10px', 
+                        overflow: 'hidden',
+                        border: '2px solid var(--success)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}>
+                        <img 
+                          src={URL.createObjectURL(resolutionImage)} 
+                          alt="Preview" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--gray-700)', fontWeight: 500, marginBottom: '4px' }}>
+                          {resolutionImage.name}
+                        </p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>
+                          {(resolutionImage.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUploadResolutionImage();
+                        }}
+                        disabled={uploadingImage}
+                        style={{ 
+                          marginTop: '8px',
+                          padding: '10px 32px',
+                          fontSize: '0.95rem',
+                          fontWeight: 500
+                        }}
+                      >
+                        {uploadingImage ? (
+                          <span>
+                            <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid white', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: '8px' }}></span>
+                            Uploading...
+                          </span>
+                        ) : (
+                          <span>
+                            <span style={{ marginRight: '8px' }}>📤</span>
+                            Upload Image
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📁</div>
+                      <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '8px' }}>
+                        Drop your image here or click to browse
+                      </p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+                        Upload proof that the issue has been resolved (max 5MB)
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: '8px' }}>
+                        Supported formats: JPG, PNG, GIF
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="comments-section">
                 <h4 className="comments-title">Comments ({comments.length})</h4>
                 {comments.length > 0 ? comments.map(comment => (
                   <div key={comment.id} className="comment">
                     <div className="comment-header">
                       <span className="comment-author">{comment.name} ({comment.role})</span>
-                      <span className="comment-date">{new Date(comment.created_at).toLocaleString()}</span>
+                      <span className="comment-date">{toGMT8LocaleString(comment.created_at)}</span>
                     </div>
                     <p className="comment-text">{comment.comment}</p>
                   </div>
@@ -348,6 +608,16 @@ const AdminComplaints = () => {
         message={`Are you sure you want to change the status to "${statusChange?.replace('_', ' ')}"?`}
         confirmText="Update"
         type="info"
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={handleDeleteComplaint}
+        title="Delete Complaint"
+        message={`Are you sure you want to delete this complaint from ${deleteConfirm?.student_name}? This action cannot be undone.`}
+        confirmText="Delete"
+        type="danger"
       />
     </Layout>
   );

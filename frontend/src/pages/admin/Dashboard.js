@@ -3,6 +3,7 @@ import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardAPI } from '../../services/api';
 import { UsersIcon, RoomIcon, ComplaintIcon, WardenIcon, CheckIcon } from '../../components/Icons';
+import { toGMT8LocaleDateString } from '../../utils/dateUtils';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -89,7 +90,7 @@ const AdminDashboard = () => {
                   <td style={{ textTransform: 'capitalize' }}>{complaint.category}</td>
                   <td><span className={`priority-${complaint.priority}`} style={{ textTransform: 'capitalize' }}>{complaint.priority}</span></td>
                   <td><span className={`badge badge-${complaint.status}`}>{complaint.status.replace('_', ' ')}</span></td>
-                  <td>{new Date(complaint.created_at).toLocaleDateString()}</td>
+                  <td>{toGMT8LocaleDateString(complaint.created_at)}</td>
                 </tr>
               )) : (
                 <tr><td colSpan="5"><div className="empty-state"><p className="empty-title">No complaints yet</p></div></td></tr>

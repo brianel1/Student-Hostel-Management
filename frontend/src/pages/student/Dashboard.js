@@ -4,6 +4,7 @@ import Layout from '../../components/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { complaintsAPI, authAPI } from '../../services/api';
 import { RoomIcon, ComplaintIcon, CheckIcon, PlusIcon } from '../../components/Icons';
+import { toGMT8LocaleDateString } from '../../utils/dateUtils';
 
 const StudentDashboard = () => {
   const { user, login } = useAuth();
@@ -103,7 +104,7 @@ const StudentDashboard = () => {
                   <td style={{ textTransform: 'capitalize' }}>{complaint.category}</td>
                   <td><span className={`priority-${complaint.priority}`} style={{ textTransform: 'capitalize' }}>{complaint.priority}</span></td>
                   <td><span className={`badge badge-${complaint.status}`}>{complaint.status.replace('_', ' ')}</span></td>
-                  <td>{new Date(complaint.created_at).toLocaleDateString()}</td>
+                  <td>{toGMT8LocaleDateString(complaint.created_at)}</td>
                 </tr>
               )) : (
                 <tr><td colSpan="4"><div className="empty-state"><p className="empty-title">No complaints yet</p><p className="empty-text">Submit your first complaint to get started</p></div></td></tr>
